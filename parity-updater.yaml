@@ -37,7 +37,7 @@ Resources:
         Properties: 
             Description: CloudWatch Events Rule to launch the scheduled task definition
             Name: !Sub event-rule-${AWS::StackName}
-            ScheduleExpression: "rate(1 hour)"
+            ScheduleExpression: "rate(4 hours)"
             State: ENABLED
             Targets:
                 - Arn: !Sub arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:cluster/${Cluster}

@@ -8,7 +8,7 @@ then
 	exit 1
 fi
 /parity/parity $* &
-sleep 1800
+sleep 10800
 pid=`ps -ef |grep parity/parity|grep -v grep|awk '{print $2}'`
 kill $pid
 sleep 30
