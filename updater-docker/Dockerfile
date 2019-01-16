@@ -1,4 +1,4 @@
-FROM parity/parity:stable
+FROM parity/parity:v2.2.7
 USER root
 
 RUN apt-get update -y && apt-get install -y python-pip && pip install awscli && rm -rf /var/lib/apt/lists/*
