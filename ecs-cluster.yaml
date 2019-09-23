@@ -1,5 +1,5 @@
 Description: >
-    This template deploys an ECS cluster to the provided VPC and subnets 
+    This template deploys an ECS cluster to the provided VPC and subnets
     using an Auto Scaling Group
     Created by Luke Youngblood, luke@blockscale.net
 Parameters:
@@ -8,7 +8,7 @@ Parameters:
         Description: An environment name that will be prefixed to resource names
         Type: String
 
-    InstanceType: 
+    InstanceType:
         Description: Which instance type should we use to build the ECS cluster?
         Type: String
         Default: i3.large
@@ -35,7 +35,7 @@ Parameters:
         Description: CIDR range that you will allow JSON RPC requests from (leave default if using default VPC)
         Type: String
         Default: "172.31.0.0/16"
-        
+
     KeyPair:
         Description: Select the KeyPair that you would like to use for the ECS cluster hosts
         Type: AWS::EC2::KeyPair::KeyName
@@ -52,13 +52,13 @@ Parameters:
 
 Mappings:
 
-    # These are the latest ECS optimized AMIs as of February 22nd, 2018:
+    # These are the latest ECS optimized AMIs as of September 17th, 2019:
 
     #
-    #   amzn-ami-2017.09.h-amazon-ecs-optimized
-    #   ECS agent:    1.17.0
-    #   Docker:       17.09.1-ce
-    #   ecs-init:     1.17.0-2
+    #   amzn-ami-2018.03.w-amazon-ecs-optimized
+    #   ECS agent:    1.30.0
+    #   Docker:       18.06.1-ce
+    #   ecs-init:     1.30.0-1
     #
     # You can find the latest available on this page of our documentation:
     # http://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-optimized_AMI.html
@@ -66,35 +66,37 @@ Mappings:
 
     AWSRegionToAMI:
         us-east-2:
-            AMI: ami-67ab9e02
+            AMI: ami-035a1bdaf0e4bf265
         us-east-1:
-            AMI: ami-5e414e24
+            AMI: ami-066ce9bb9f4cbb03d
         us-west-2:
-            AMI: ami-10ed6968
+            AMI: ami-0fd6e28e415664140
         us-west-1:
-            AMI: ami-00898660
+            AMI: ami-0413317a44231a219
         eu-west-3:
-            AMI: ami-6fa21412
+            AMI: ami-0244cc5d7b6e6d95e
         eu-west-2:
-            AMI: ami-42a64325
+            AMI: ami-0e2d2ad19e82df43b
         eu-west-1:
-            AMI: ami-880d64f1
+            AMI: ami-0d2aaec13a6b7e7ca
         eu-central-1:
-            AMI: ami-63cbae0c
+            AMI: ami-0b0a910db6581d75f
+        eu-north-1:
+            AMI: ami-03147f238a3100ad7
         ap-northeast-2:
-            AMI: ami-0acc6e64
+            AMI: ami-0c6e04cbad6e3e13f
         ap-northeast-1:
-            AMI: ami-e3166185
+            AMI: ami-0a4b5b999281c955b
         ap-southeast-2:
-            AMI: ami-36867d54
+            AMI: ami-0112bb4988eedc594
         ap-southeast-1:
-            AMI: ami-66c98f1a
+            AMI: ami-003cb73efe1eb03cc
         ca-central-1:
-            AMI: ami-4b9c182f
+            AMI: ami-02a835991f91d92cb
         ap-south-1:
-            AMI: ami-ca8ad9a5
+            AMI: ami-04a56cb1908b6ce94
         sa-east-1:
-            AMI: ami-69f7b805
+            AMI: ami-0149bb9bc7a19cf0e
 
 Resources:
 
@@ -105,18 +107,18 @@ Resources:
 
     ECSAutoScalingGroup:
         Type: AWS::AutoScaling::AutoScalingGroup
-        Properties: 
+        Properties:
             VPCZoneIdentifier: !Ref Subnets
             LaunchConfigurationName: !Ref ECSLaunchConfiguration
             MinSize: !Ref ClusterSize
             MaxSize: !Ref ClusterSize
             DesiredCapacity: !Ref ClusterSize
-            Tags: 
+            Tags:
                 - Key: Name
                   Value: !Sub ${EnvironmentName} ECS host
                   PropagateAtLaunch: true
         CreationPolicy:
-            ResourceSignal: 
+            ResourceSignal:
                 Timeout: PT15M
         UpdatePolicy:
             AutoScalingRollingUpdate:
@@ -129,18 +131,18 @@ Resources:
                   - AlarmNotification
                   - ScheduledActions
                 WaitOnResourceSignals: true
-        
+
     ECSLaunchConfiguration:
         Type: AWS::AutoScaling::LaunchConfiguration
         Properties:
             ImageId:  !FindInMap [AWSRegionToAMI, !Ref "AWS::Region", AMI]
             InstanceType: !Ref InstanceType
             SpotPrice: !Ref SpotPrice
-            SecurityGroups: 
+            SecurityGroups:
                 - !Ref InstanceSecurityGroup
             IamInstanceProfile: !Ref ECSInstanceProfile
             KeyName: !Ref KeyPair
-            UserData: 
+            UserData:
                 "Fn::Base64": !Sub |
                     #!/bin/bash
 
@@ -148,24 +150,24 @@ Resources:
                     yum install -y https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/linux_amd64/amazon-ssm-agent.rpm
                     yum update -y
                     restart amazon-ssm-agent
-                    
+
                     drives=`find /dev -regextype posix-egrep -regex '.*/(sd[b-z]|xvd[b-z]|nvme[0-9]n1)'`
                     ephemeral_count=`find /dev -regextype posix-egrep -regex '.*/(sd[b-z]|xvd[b-z]|nvme[0-9]n1)'|wc -l`
                     mount_point=/var/lib/docker
                     yum -y -d0 install mdadm curl rsync
-                    
+
                     # copy existing files from mount point
                     service docker stop
                     echo 'DOCKER_STORAGE_OPTIONS="--storage-driver overlay2"' > /etc/sysconfig/docker-storage
                     mkdir -p /tmp$mount_point
                     rsync -val $mount_point/ /tmp/$mount_point/
                     umount $mount_point
-                    
+
                     # overwrite first few blocks in case there is a filesystem, otherwise mdadm will prompt for input
                     for drive in $drives; do
                       dd if=/dev/zero of=$drive bs=4096 count=1024
                     done
-                    
+
                     partprobe
                     mdadm --create --force --verbose /dev/md0 --level=0 -c256 --raid-devices=$ephemeral_count $drives
                     echo DEVICE $drives | tee /etc/mdadm.conf
@@ -173,14 +175,14 @@ Resources:
                     blockdev --setra 65536 /dev/md0
                     mkfs -t ext4 /dev/md0
                     mkdir -p $mount_point
-                    
+
                     mount -t ext4 -o noatime /dev/md0 $mount_point
-                    
+
                     # Copy files back to new mount point
                     rsync -val /tmp/$mount_point/ $mount_point/
                     rm -rf /tmp$mount_point
                     service docker start
-                    
+
                     # Make raid appear on reboot
                     echo "/dev/md0 $mount_point ext4 noatime 0 0" | tee -a /etc/fstab
                     yum install -y aws-cfn-bootstrap
@@ -217,19 +219,19 @@ Resources:
                                 [main]
                                 stack=${AWS::StackId}
                                 region=${AWS::Region}
-                        
+
                         "/etc/cfn/hooks.d/cfn-auto-reloader.conf":
                             content: !Sub |
                                 [cfn-auto-reloader-hook]
                                 triggers=post.update
                                 path=Resources.ECSLaunchConfiguration.Metadata.AWS::CloudFormation::Init
                                 action=/opt/aws/bin/cfn-init -v --region ${AWS::Region} --stack ${AWS::StackName} --resource ECSLaunchConfiguration
-                    services: 
+                    services:
                         sysvinit:
-                            cfn-hup: 
+                            cfn-hup:
                                 enabled: true
                                 ensureRunning: true
-                                files: 
+                                files:
                                     - /etc/cfn/cfn-hup.conf
                                     - /etc/cfn/hooks.d/cfn-auto-reloader.conf
 
@@ -243,7 +245,7 @@ Resources:
 
     ECSRole:
         Type: AWS::IAM::Role
-        Properties: 
+        Properties:
             Path: /
             RoleName: !Sub ${EnvironmentName}-ECSRole-${AWS::Region}
             AssumeRolePolicyDocument: |
@@ -259,7 +261,7 @@ Resources:
                         }
                     }]
                 }
-            Policies: 
+            Policies:
                 - PolicyName: ecs-service
                   PolicyDocument: |
                     {
@@ -363,11 +365,11 @@ Resources:
                             "Resource": "*"
                         }]
                     }
-    ECSInstanceProfile: 
+    ECSInstanceProfile:
         Type: AWS::IAM::InstanceProfile
         Properties:
             Path: /
-            Roles: 
+            Roles:
                 - !Ref ECSRole
 
     InstanceSecurityGroup:

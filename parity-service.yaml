@@ -2,7 +2,7 @@ Description: >
     This template deploys a Network Load Balancer that acts as a front-end to the Parity service.
     It also deploys a long-running service that launches Parity nodes listening for JSON RPC requests.
     Created by Luke Youngblood, luke.youngblood@gmail.com
-Parameters: 
+Parameters:
 
     EnvironmentName:
         Description: An environment name that will be prefixed to resource names
@@ -17,7 +17,7 @@ Parameters:
         Description: The prefix in the S3 bucket that contains the Parity blockchain data files
         Type: String
         Default: parity-docker
-        
+
     DockerImage:
         Description: The Docker image to pull from your container registry
         Type: String
@@ -35,27 +35,27 @@ Parameters:
         Description: Please provide the ECS Cluster ID that this service should run on
         Type: String
 
-    DesiredCount: 
+    DesiredTaskCount:
         Description: How many instances of this task should we run across our cluster?
         Type: Number
         Default: 6
 
 Resources:
 
-    Service: 
+    Service:
         Type: AWS::ECS::Service
         DependsOn: Listener
-        Properties: 
+        Properties:
             Cluster: !Ref Cluster
             Role: !Ref ServiceRole
-            DesiredCount: !Ref DesiredCount
+            DesiredCount: !Ref DesiredTaskCount
             HealthCheckGracePeriodSeconds: 1800
             DeploymentConfiguration:
                 MaximumPercent: 133
                 MinimumHealthyPercent: 66
             TaskDefinition: !Ref TaskDefinition
-            
-            LoadBalancers: 
+
+            LoadBalancers:
                 - ContainerName: "parity-service"
                   ContainerPort: 8545
                   TargetGroupArn: !Ref TargetGroup
@@ -70,7 +70,7 @@ Resources:
                 - Name: parity-service
                   Essential: true
                   Image: !Ref DockerImage
-                  Command: 
+                  Command:
                     - "--cache-size 2048 --tx-queue-mem-limit 0 --tx-queue-size 40000 --rpccorsdomain '*' --jsonrpc-interface all --jsonrpc-hosts all --no-download --auto-update none --pruning fast --db-compaction ssd --max-peers 10 --min-peers 10"
                   Environment:
                     - Name: "region"
@@ -92,7 +92,7 @@ Resources:
 
     CloudWatchLogsGroup:
         Type: AWS::Logs::LogGroup
-        Properties: 
+        Properties:
             LogGroupName: !Ref AWS::StackName
             RetentionInDays: 14
 
@@ -103,7 +103,7 @@ Resources:
             Type: network
             Scheme: internal
             Subnets: !Ref Subnets
-            Tags: 
+            Tags:
                 - Key: Name
                   Value: !Ref EnvironmentName
 
@@ -118,7 +118,7 @@ Resources:
     Listener:
         Type: AWS::ElasticLoadBalancingV2::Listener
         DependsOn: LoadBalancer
-        Properties: 
+        Properties:
             DefaultActions:
             - Type: forward
               TargetGroupArn: !Ref TargetGroup
@@ -141,9 +141,9 @@ Resources:
                         "Action": "sts:AssumeRole"
                     }]
                 }
-            Policies: 
+            Policies:
                 - PolicyName: !Sub ecs-task-${AWS::StackName}
-                  PolicyDocument: 
+                  PolicyDocument:
                     {
                         "Version": "2012-10-17",
                         "Statement": [{
@@ -156,12 +156,12 @@ Resources:
                         }]
                     }
 
-    # This IAM Role grants the service access to register/unregister with the 
+    # This IAM Role grants the service access to register/unregister with the
     # Network Load Balancer (NLB). It is based on the default documented here:
     # http://docs.aws.amazon.com/AmazonECS/latest/developerguide/service_IAM_role.html
-    ServiceRole: 
+    ServiceRole:
         Type: AWS::IAM::Role
-        Properties: 
+        Properties:
             RoleName: !Sub ecs-service-${AWS::StackName}
             Path: /
             AssumeRolePolicyDocument: |
@@ -172,9 +172,9 @@ Resources:
                         "Action": [ "sts:AssumeRole" ]
                     }]
                 }
-            Policies: 
+            Policies:
                 - PolicyName: !Sub ecs-service-${AWS::StackName}
-                  PolicyDocument: 
+                  PolicyDocument:
                     {
                         "Version": "2012-10-17",
                         "Statement": [{
