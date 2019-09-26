@@ -1,7 +1,7 @@
 Description: >
     This template deploys an ECS cluster to the provided VPC and subnets
     using an Auto Scaling Group
-    Created by Luke Youngblood, luke@blockscale.net
+    Created by: Luke Youngblood <luke@blockscale.net>, Carl Youngblood <carl@blockscale.net>
 Parameters:
 
     EnvironmentName:
@@ -11,7 +11,7 @@ Parameters:
     InstanceType:
         Description: Which instance type should we use to build the ECS cluster?
         Type: String
-        Default: i3.large
+        Default: i3.xlarge
 
     SpotPrice:
         Description: What is the maximum spot price we should pay per instance?  Set this to the on-demand price normally.
@@ -108,6 +108,7 @@ Resources:
     ECSAutoScalingGroup:
         Type: AWS::AutoScaling::AutoScalingGroup
         Properties:
+            HealthCheckGracePeriod: 3600
             VPCZoneIdentifier: !Ref Subnets
             LaunchConfigurationName: !Ref ECSLaunchConfiguration
             MinSize: !Ref ClusterSize

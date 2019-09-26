@@ -3,7 +3,7 @@ Description: >
     using VPC Link to proxy the requests directly to the NLB.  Security is provided by
     validating the request body against a JSON schema, which only allows approved
     JSON RPC methods to be included in the request body.
-    Created by Luke Youngblood, luke.youngblood@gmail.com
+    Created by Luke Youngblood <luke@blockscale.net>, Carl Youngblood <carl@blockscale.net>
 
 Parameters:
 
@@ -119,14 +119,14 @@ Resources:
                     validateRequestParameters: false
                     validateRequestBody: true
 
-    EthJSONRPCModel: 
+    EthJSONRPCModel:
         Type: "AWS::ApiGateway::Model"
-        Properties: 
+        Properties:
             RestApiId: !Ref RestApi
             ContentType: "application/json"
             Description: "Schema for EthJSONRPC"
             Name: EthJSONRPC
-            Schema: 
+            Schema:
                 "$schema": "http://json-schema.org/draft-04/schema#"
                 title: EthJSONRPC
                 anyOf:
@@ -240,7 +240,7 @@ Resources:
 
     APIGWRole:
         Type: AWS::IAM::Role
-        Properties: 
+        Properties:
             Path: /
             RoleName: !Sub ${EnvironmentName}-APIGWRole-${AWS::Region}
             AssumeRolePolicyDocument: |
@@ -255,7 +255,7 @@ Resources:
                         }
                     }]
                 }
-            Policies: 
+            Policies:
                 - PolicyName: ecs-service
                   PolicyDocument: |
                     {
@@ -277,7 +277,7 @@ Resources:
     APIGWAccount:
         Type: "AWS::ApiGateway::Account"
         DependsOn: APIGWRole
-        Properties: 
+        Properties:
             CloudWatchRoleArn:
                 Fn::GetAtt:
                     - APIGWRole

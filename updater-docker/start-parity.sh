@@ -7,7 +7,7 @@ then
 	echo "aws s3 sync command failed; exiting."
 	exit 1
 fi
-/home/parity/bin/parity $* &
+/bin/parity $* &
 sleep 10800
 pid=`ps -ef |grep bin/parity|grep -v grep|awk '{print $2}'`
 kill $pid

@@ -1,7 +1,7 @@
 Description: >
     This template deploys a Network Load Balancer that acts as a front-end to the Parity service.
     It also deploys a long-running service that launches Parity nodes listening for JSON RPC requests.
-    Created by Luke Youngblood, luke.youngblood@gmail.com
+    Created by Luke Youngblood <luke@blockscale.net>, Carl Youngblood <carl@blockscale.net>
 Parameters:
 
     EnvironmentName:
@@ -49,7 +49,7 @@ Resources:
             Cluster: !Ref Cluster
             Role: !Ref ServiceRole
             DesiredCount: !Ref DesiredTaskCount
-            HealthCheckGracePeriodSeconds: 1800
+            HealthCheckGracePeriodSeconds: 3600
             DeploymentConfiguration:
                 MaximumPercent: 133
                 MinimumHealthyPercent: 66
@@ -71,7 +71,7 @@ Resources:
                   Essential: true
                   Image: !Ref DockerImage
                   Command:
-                    - "--cache-size 2048 --tx-queue-mem-limit 0 --tx-queue-size 40000 --rpccorsdomain '*' --jsonrpc-interface all --jsonrpc-hosts all --no-download --auto-update none --pruning fast --db-compaction ssd --max-peers 10 --min-peers 10"
+                    - "--cache-size 2048 --tx-queue-mem-limit 0 --tx-queue-size 40000 --jsonrpc-cors '*' --jsonrpc-interface all --jsonrpc-hosts all --no-download --auto-update none --pruning fast --db-compaction ssd --max-peers 10 --min-peers 10"
                   Environment:
                     - Name: "region"
                       Value: !Ref AWS::Region
