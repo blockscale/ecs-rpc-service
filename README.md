@@ -1,4 +1,4 @@
-# parity-ecs - A parity backend that runs in AWS Elastic Container Service
+# ecs-rpc-service - A highly-available ethereum node service for Amazon Elastic Container Service
 
 ## Installation Instructions
 
