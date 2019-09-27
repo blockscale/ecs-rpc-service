@@ -1,5 +1,7 @@
 # ecs-rpc-service - A highly-available ethereum node service for Amazon Elastic Container Service
 
+![Architectural diagram](https://github.com/blockscale/ecs-rpc-service/raw/master/doc/images/architectural_diagram.png "Architectural diagram")
+
 ## Installation instructions
 1. Place a copy of your parity .local directory with a completely up-to-date
    blockchain in an S3 bucket by using the `aws s3 sync` command
