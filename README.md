@@ -1,34 +1,22 @@
 # ecs-rpc-service - A highly-available ethereum node service for Amazon Elastic Container Service
 
-## Installation Instructions
-
-### Pre-Installation AWS Account Configuration
-Prior to installation, you should do the following things in your AWS account:
-1. Create a keypair and save the private key (PEM file) to your workstation so you can ssh to the instances in your ECS cluster.
-2. Create two repositories in ECR, or in the Docker registry of your choice.  The first is called parity, and the second one is called parity-updater.
-  * Note the location of each of the repositories, which will be similar to this: *AWS_account_ID*.dkr.ecr.us-east-1.amazonaws.com/parity:latest
-3. Place a copy of your parity .local directory with a completely up to date blockchain in an S3 bucket by using the ```aws s3 sync``` command.
-
-### Build Parity node Docker container
-The following steps will allow you to build the Parity node docker container:
-1. Clone the git repository.
-2. Run the following commands to build and push the Docker container:
-```
-(echo aws ecr get-login --no-include-email --region us-east-1 --profile <profile>) | /bin/bash
-cd parity-docker/
-docker build -t parity .
-docker tag parity:latest <AWS_account_ID>.dkr.ecr.us-east-1.amazonaws.com/parity:latest
-docker push <AWS_account_ID>.dkr.ecr.us-east-1.amazonaws.com/parity:latest
-```
-
-### Build the Parity Updater Docker container
-The following steps will allow you to build the Parity updater docker container:
-```
-cd ../updater-docker/
-docker build -t parity-updater .
-docker tag parity-updater:latest <AWS_account_ID>.dkr.ecr.us-east-1.amazonaws.com/parity-updater:latest
-docker push <AWS_account_ID>.dkr.ecr.us-east-1.amazonaws.com/parity-updater:latest
-```
+## Installation instructions
+1. Place a copy of your parity .local directory with a completely up-to-date
+   blockchain in an S3 bucket by using the `aws s3 sync` command
+2. Install the [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-install.html).
+3. Set environment variables like AWS_DEFAULT_REGION and AWS_PROFILE to the
+   settings you prefer.
+4. Create a key pair under **EC2 > Key pairs** in your preferred region in the
+   AWS Management Console and save the private key (PEM file) to your
+   workstation so you can ssh to the instances in your ECS cluster.
+5. Install ruby on your OS if it's not there already. You may wish to use an
+   environment manager such as [RVM](https://rvm.io/) or
+   [rbenv](https://github.com/rbenv/rbenv) to avoid polluting your global
+   environment.
+6. Once in your ruby environment:
+   1. `gem install bundler`
+   2. `bundle install`
+   3. `rake`
 
 ### Launch the ECS Cluster
 The following steps will allow you to launch the ECS cluster:
