@@ -4,6 +4,7 @@ require 'json'
 require 'pathname'
 require 'colorize'
 require 'open3'
+require 'erb'
 
 def random_text(number)
   charset = Array('a'..'z')
@@ -124,7 +125,23 @@ end
 
 desc "Push CloudFormation updates"
 task :push_cfn_templates => [:create_template_bucket] do
-  my_exec("aws s3 cp templates s3://ecs-rpc-service-templates-#{dc.aws_env[:suffix]} --recursive", halt_on_error: false)
+  Dir.mkdir('build') rescue nil
+  suffix = dc.aws_env[:suffix]
+  renderer = ERB.new(File.read('templates/master.yaml.erb'))
+  File.open('build/master.yaml', 'w') do |file|
+    file << renderer.result(binding)
+  end
+  my_exec("cp templates/*.yaml build")
+  my_exec("aws s3 cp build s3://ecs-rpc-service-templates-#{dc.aws_env[:suffix]} --recursive", halt_on_error: false)
+end
+
+desc "Create master CloudFormation stack"
+task :create_cfn_stack => [:push_cfn_templates] do
+  cmd = 'aws cloudformation create-stack --stack-name ecs-rpc-service '
+  cmd << "--template-url https://s3.amazonaws.com/ecs-rpc-service-templates-#{dc.aws_env[:suffix]}/master.yaml "
+  cmd << "--parameters file://config/params.json "
+  cmd << "--capabilities CAPABILITY_NAMED_IAM"
+  my_exec(cmd)
 end
 
 task :default => [:docker]

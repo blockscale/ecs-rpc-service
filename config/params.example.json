@@ -1,0 +1,38 @@
+[
+  {
+    "ParameterKey": "VPC",
+    "ParameterValue": "vpc-f26fc18a"
+  },
+  {
+    "ParameterKey": "Subnets",
+    "ParameterValue": "subnet-2e310a57, subnet-3886a373, subnet-60eee43a, subnet-b333b198"
+  },
+  {
+    "ParameterKey": "CIDR",
+    "ParameterValue": "172.31.0.0/16"
+  },
+  {
+    "ParameterKey": "KeyPair",
+    "ParameterValue": "carl-us-west-2"
+  },
+  {
+    "ParameterKey": "Bandwidth",
+    "ParameterValue": 2048
+  },
+  {
+    "ParameterKey": "BandwidthCeiling",
+    "ParameterValue": 4096
+  },
+  {
+    "ParameterKey": "EnvironmentName",
+    "ParameterValue": "ecs-rpc-service"
+  },
+  {
+    "ParameterKey": "SpotPrice",
+    "ParameterValue": 0.156
+  },
+  {
+    "ParameterKey": "ClusterSize",
+    "ParameterValue": 3
+  }
+]
