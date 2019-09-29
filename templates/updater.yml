@@ -12,15 +12,15 @@ Parameters:
   Bucket:
     Description: The S3 bucket that contains the Parity blockchain data files
     Type: String
-    Default: parity-files-snapshot
+    Default: rpc-service-snapshot
   s3key:
     Description: The prefix in the S3 bucket that contains the Parity blockchain data files
     Type: String
-    Default: parity-docker
+    Default: parity
   DockerImage:
     Description: The Docker image to pull from your container registry
     Type: String
-    Default: "AWS account ID.dkr.ecr.us-east-1.amazonaws.com/parity-updater:latest"
+    Default: "AWS account ID.dkr.ecr.us-east-1.amazonaws.com/updater:latest"
   Cluster:
     Description: Please provide the ECS Cluster ID that this service should run on
     Type: String
@@ -44,11 +44,11 @@ Resources:
   TaskDefinition:
     Type: AWS::ECS::TaskDefinition
     Properties:
-      Family: parity-updater
+      Family: updater
       TaskRoleArn: !Ref TaskRole
       NetworkMode: bridge
       ContainerDefinitions:
-        - Name: parity-updater
+        - Name: updater
           Essential: true
           Image: !Ref DockerImage
           Command:
