@@ -28,7 +28,7 @@
     
 Once the cluster nodes are healthy, it should be possible to send transactions to the RPC service. The RPC URI can be
 found in **CloudFormation** under the main stack's outputs. Here is a test transaction that can be sent from the
-command line. The service is working, you should get a response like the one below.
+command line. If the service is working, you should get a response like the one below.
 
 ```
 ∴ curl <URI> -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","method":"web3_clientVersion","params":[],"id":67}'
