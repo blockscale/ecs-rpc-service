@@ -17,3 +17,5 @@
    1. `gem install bundler`
    2. `bundle install`
    3. `rake`
+   Given a node size of 150GB, the stack creation process takes about thirty minutes, and another thirty for the nodes
+   to come fully online.
