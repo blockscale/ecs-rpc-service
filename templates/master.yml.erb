@@ -181,3 +181,8 @@ Resources:
           - Outputs.VpcLink
         APIHostname: !Ref ApiHostname
         ResourcePathPart: !Ref ResourcePathPart
+Outputs:
+  RestApiUri:
+    Value: !GetAtt
+      - ApiGateway
+      - Outputs.RestApiUri

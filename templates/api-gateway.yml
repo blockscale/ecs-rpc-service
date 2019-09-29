@@ -44,7 +44,7 @@ Resources:
         schemes:
           - "https"
         paths:
-          /parity:
+          /rpc:
             post:
               consumes:
                 - "application/json"
@@ -275,3 +275,9 @@ Outputs:
   RestApiId:
     Description: A reference to the REST API Created
     Value: !Ref RestApi
+  RestApiUri:
+    Value: !Join
+      - ""
+      - - !Sub "https://${RestApi}.execute-api.${AWS::Region}.amazonaws.com/"
+        - !Ref ResourcePathPart
+        - "/rpc"
