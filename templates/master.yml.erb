@@ -1,0 +1,183 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Master Template for the ECS RPC Service
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      -
+        Label:
+          default: Network configuration
+        Parameters:
+          - VPC
+          - Subnets
+          - CIDR
+          - Bandwidth
+          - BandwidthCeiling
+      -
+        Label:
+          default: Cluster options
+        Parameters:
+          - ClusterSize
+          - SpotPrice
+          - InstanceType
+          - KeyPair
+      -
+        Label:
+          default: RPC service options
+        Parameters:
+          - BucketName
+          - BucketKey
+          - RpcDockerImage
+          - DesiredTaskCount
+    ParameterLabels:
+      ClusterSize:
+        default: Cluster size
+      SpotPrice:
+        default: Spot price
+      InstanceType:
+        default: Instance type
+      KeyPair:
+        default: Key pair
+      BucketName:
+        default: Bucket name
+      BucketKey:
+        default: Bucket key
+      RpcDockerImage:
+        default: Docker image name for RPC container
+      UpdaterDockerImage:
+        default: Docker image name for updater container
+      DesiredTaskCount:
+        default: Desired task count for entire ECS cluster
+Parameters:
+  EnvironmentName:
+    Description: An environment name that will be prefixed to resource names
+    Type: String
+  SpotPrice:
+    Description: What is the maximum spot price we should pay per instance?  Set this to the on-demand price normally.
+    Type: Number
+    Default: 0.156
+  ClusterSize:
+    Description: How many ECS hosts do you want to initially deploy?
+    Type: Number
+    Default: 3
+  VPC:
+    Description: Choose which VPC this ECS cluster should be deployed to
+    Type: AWS::EC2::VPC::Id
+  Subnets:
+    Description: Choose which subnets this ECS cluster should be deployed to
+    Type: String
+  CIDR:
+    Description: CIDR range that you will allow JSON RPC requests from (leave default if using default VPC)
+    Type: String
+    Default: "172.31.0.0/16"
+  KeyPair:
+    Description: Select the KeyPair that you would like to use for the ECS cluster hosts
+    Type: AWS::EC2::KeyPair::KeyName
+  Bandwidth:
+    Description: How much bandwidth, in kb/sec., should be allocated to Parity peers (upload) per EC2 instance
+    Type: Number
+    Default: 2048
+  BandwidthCeiling:
+    Description: How much bandwidth, in kb/sec., should be allocated to Parity peers as a ceiling (max. upload)
+    Type: Number
+    Default: 4096
+  InstanceType:
+    Description: The type of compute instance to use for your RPC nodes.
+    Default: i3.xlarge
+    Type: String
+    AllowedValues:
+      - i3.xlarge
+      - i3.2xlarge
+      - i3.4xlarge
+      - i3.8xlarge
+  BucketName:
+    Description: The S3 bucket that contains the blockchain data files
+    Type: String
+    Default: ecs-rpc-service-blockchain-state
+  BucketKey:
+    Description: The subfolder/key within the bucket that contains the blockchain data files
+    Type: String
+    Default: parity
+  RpcDockerImage:
+    Description: The Docker image to pull from your container registry
+    Type: String
+    Default: "aws-acct-id.dkr.ecr.us-east-1.amazonaws.com/rpc:latest"
+  UpdaterDockerImage:
+    Description: The Docker image to pull from your container registry
+    Type: String
+    Default: "aws-acct-id.dkr.ecr.us-east-1.amazonaws.com/updater:latest"
+  DesiredTaskCount:
+    Description: How many instances of this task should we run across our cluster?
+    Type: Number
+    Default: 6
+  ApiName:
+    Description: The name of the API Gateway
+    Type: String
+  ApiHostname:
+    Description: The hostname of the API in case you are using a custom domain
+    Type: String
+    Default: api.dev.blockscale.net
+  ResourcePathPart:
+    Description: "The path part for the API stage (example: dev)"
+    Type: String
+    Default: dev
+Resources:
+  EcsCluster:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://s3.amazonaws.com/ecs-rpc-service-templates-<%= suffix %>/ecs-cluster.yml
+      Parameters:
+        EnvironmentName: !Ref EnvironmentName
+        SpotPrice: !Ref SpotPrice
+        ClusterSize: !Ref ClusterSize
+        VPC: !Ref VPC
+        Subnets: !Ref Subnets
+        CIDR: !Ref CIDR
+        KeyPair: !Ref KeyPair
+        Bandwidth: !Ref Bandwidth
+        BandwidthCeiling: !Ref BandwidthCeiling
+        InstanceType: !Ref InstanceType
+  RpcService:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: EcsCluster
+    Properties:
+      TemplateURL: https://s3.amazonaws.com/ecs-rpc-service-templates-<%= suffix %>/rpc-service.yml
+      Parameters:
+        EnvironmentName: !Ref EnvironmentName
+        Bucket: !Ref BucketName
+        s3key: !Ref BucketKey
+        DockerImage: !Ref RpcDockerImage
+        VPC: !Ref VPC
+        Subnets: !Ref Subnets
+        DesiredTaskCount: !Ref DesiredTaskCount
+        Cluster: !GetAtt
+          - EcsCluster
+          - Outputs.Cluster
+  Updater:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: RpcService
+    Properties:
+      TemplateURL: https://s3.amazonaws.com/ecs-rpc-service-templates-<%= suffix %>/updater.yml
+      Parameters:
+        EnvironmentName: !Ref EnvironmentName
+        Bucket: !Ref BucketName
+        s3key: !Ref BucketKey
+        DockerImage: !Ref UpdaterDockerImage
+        Cluster: !GetAtt
+          - EcsCluster
+          - Outputs.Cluster
+  ApiGateway:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: Updater
+    Properties:
+      TemplateURL: https://s3.amazonaws.com/ecs-rpc-service-templates-<%= suffix %>/api-gateway.yml
+      Parameters:
+        EnvironmentName: !Ref EnvironmentName
+        NLBURL: !GetAtt
+          - RpcService
+          - Outputs.NlbUrl
+        APIname: !Ref ApiName
+        VPCLink: !GetAtt
+          - RpcService
+          - Outputs.VpcLink
+        APIHostname: !Ref ApiHostname
+        ResourcePathPart: !Ref ResourcePathPart

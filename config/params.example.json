@@ -34,5 +34,29 @@
   {
     "ParameterKey": "ClusterSize",
     "ParameterValue": 3
+  },
+  {
+    "ParameterKey": "BucketName",
+    "ParameterValue": "ecs-rpcs-service-blockchain-state"
+  },
+  {
+    "ParameterKey": "BucketKey",
+    "ParameterValue": "parity"
+  },
+  {
+    "ParameterKey": "DesiredTaskCount",
+    "ParameterValue": "6"
+  },
+  {
+    "ParameterKey": "ApiName",
+    "ParameterValue": "ethrpc"
+  },
+  {
+    "ParameterKey": "ApiHostname",
+    "ParameterValue": ""
+  },
+  {
+    "ParameterKey": "ResourcePathPart",
+    "ParameterValue": "dev"
   }
 ]

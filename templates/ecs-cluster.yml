@@ -1,0 +1,377 @@
+Description: >
+  This template deploys an ECS cluster to the provided VPC and subnets
+  using an Auto Scaling Group
+  Created by:
+    Luke Youngblood <luke@blockscale.net>
+    Carl Youngblood <carl@blockscale.net>
+Parameters:
+  EnvironmentName:
+    Description: An environment name that will be prefixed to resource names
+    Type: String
+  InstanceType:
+    Description: Which instance type should we use to build the ECS cluster?
+    Type: String
+    Default: i3.xlarge
+  SpotPrice:
+    Description: What is the maximum spot price we should pay per instance?  Set this to the on-demand price normally.
+    Type: Number
+    Default: 0.156
+  ClusterSize:
+    Description: How many ECS hosts do you want to initially deploy?
+    Type: Number
+    Default: 3
+  VPC:
+    Description: Choose which VPC this ECS cluster should be deployed to
+    Type: AWS::EC2::VPC::Id
+  Subnets:
+    Description: Choose which subnets this ECS cluster should be deployed to
+    Type: List<AWS::EC2::Subnet::Id>
+  CIDR:
+    Description: CIDR range that you will allow JSON RPC requests from (leave default if using default VPC)
+    Type: String
+    Default: "172.31.0.0/16"
+  KeyPair:
+    Description: Select the KeyPair that you would like to use for the ECS cluster hosts
+    Type: AWS::EC2::KeyPair::KeyName
+  Bandwidth:
+    Description: How much bandwidth, in kb/sec., should be allocated to Parity peers (upload) per EC2 instance
+    Type: Number
+    Default: 2048
+  BandwidthCeiling:
+    Description: How much bandwidth, in kb/sec., should be allocated to Parity peers as a ceiling (max. upload)
+    Type: Number
+    Default: 4096
+Mappings:
+  # These are the latest ECS optimized AMIs as of September 17th, 2019:
+  #
+  #   amzn-ami-2018.03.w-amazon-ecs-optimized
+  #   ECS agent:    1.30.0
+  #   Docker:       18.06.1-ce
+  #   ecs-init:     1.30.0-1
+  #
+  # You can find the latest available on this page of our documentation:
+  # http://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-optimized_AMI.html
+  # (note the AMI identifier is region specific)
+  AWSRegionToAMI:
+    us-east-2:
+      AMI: ami-035a1bdaf0e4bf265
+    us-east-1:
+      AMI: ami-066ce9bb9f4cbb03d
+    us-west-2:
+      AMI: ami-0fd6e28e415664140
+    us-west-1:
+      AMI: ami-0413317a44231a219
+    eu-west-3:
+      AMI: ami-0244cc5d7b6e6d95e
+    eu-west-2:
+      AMI: ami-0e2d2ad19e82df43b
+    eu-west-1:
+      AMI: ami-0d2aaec13a6b7e7ca
+    eu-central-1:
+      AMI: ami-0b0a910db6581d75f
+    eu-north-1:
+      AMI: ami-03147f238a3100ad7
+    ap-northeast-2:
+      AMI: ami-0c6e04cbad6e3e13f
+    ap-northeast-1:
+      AMI: ami-0a4b5b999281c955b
+    ap-southeast-2:
+      AMI: ami-0112bb4988eedc594
+    ap-southeast-1:
+      AMI: ami-003cb73efe1eb03cc
+    ca-central-1:
+      AMI: ami-02a835991f91d92cb
+    ap-south-1:
+      AMI: ami-04a56cb1908b6ce94
+    sa-east-1:
+      AMI: ami-0149bb9bc7a19cf0e
+Resources:
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Ref EnvironmentName
+  ECSAutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      HealthCheckGracePeriod: 3600
+      VPCZoneIdentifier: !Ref Subnets
+      LaunchConfigurationName: !Ref ECSLaunchConfiguration
+      MinSize: !Ref ClusterSize
+      MaxSize: !Ref ClusterSize
+      DesiredCapacity: !Ref ClusterSize
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} ECS host
+          PropagateAtLaunch: true
+    CreationPolicy:
+      ResourceSignal:
+        Timeout: PT15M
+    UpdatePolicy:
+      AutoScalingRollingUpdate:
+        MinSuccessfulInstancesPercent: 66
+        PauseTime: PT15M
+        SuspendProcesses:
+          - HealthCheck
+          - ReplaceUnhealthy
+          - AZRebalance
+          - AlarmNotification
+          - ScheduledActions
+        WaitOnResourceSignals: true
+  ECSLaunchConfiguration:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      ImageId:  !FindInMap [AWSRegionToAMI, !Ref "AWS::Region", AMI]
+      InstanceType: !Ref InstanceType
+      SpotPrice: !Ref SpotPrice
+      SecurityGroups:
+        - !Ref InstanceSecurityGroup
+      IamInstanceProfile: !Ref ECSInstanceProfile
+      KeyName: !Ref KeyPair
+      UserData:
+        "Fn::Base64": !Sub |
+          #!/bin/bash
+
+          cd /tmp
+          yum install -y https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/linux_amd64/amazon-ssm-agent.rpm
+          yum update -y
+          restart amazon-ssm-agent
+
+          drives=`find /dev -regextype posix-egrep -regex '.*/(sd[b-z]|xvd[b-z]|nvme[0-9]n1)'`
+          ephemeral_count=`find /dev -regextype posix-egrep -regex '.*/(sd[b-z]|xvd[b-z]|nvme[0-9]n1)'|wc -l`
+          mount_point=/var/lib/docker
+          yum -y -d0 install mdadm curl rsync
+
+          # copy existing files from mount point
+          service docker stop
+          echo 'DOCKER_STORAGE_OPTIONS="--storage-driver overlay2"' > /etc/sysconfig/docker-storage
+          mkdir -p /tmp$mount_point
+          rsync -val $mount_point/ /tmp/$mount_point/
+          umount $mount_point
+
+          # overwrite first few blocks in case there is a filesystem, otherwise mdadm will prompt for input
+          for drive in $drives; do
+            dd if=/dev/zero of=$drive bs=4096 count=1024
+          done
+
+          partprobe
+          mdadm --create --force --verbose /dev/md0 --level=0 -c256 --raid-devices=$ephemeral_count $drives
+          echo DEVICE $drives | tee /etc/mdadm.conf
+          mdadm --detail --scan | tee -a /etc/mdadm.conf
+          blockdev --setra 65536 /dev/md0
+          mkfs -t ext4 /dev/md0
+          mkdir -p $mount_point
+
+          mount -t ext4 -o noatime /dev/md0 $mount_point
+
+          # Copy files back to new mount point
+          rsync -val /tmp/$mount_point/ $mount_point/
+          rm -rf /tmp$mount_point
+          service docker start
+
+          # Make raid appear on reboot
+          echo "/dev/md0 $mount_point ext4 noatime 0 0" | tee -a /etc/fstab
+          yum install -y aws-cfn-bootstrap
+          /opt/aws/bin/cfn-init -v --region ${AWS::Region} --stack ${AWS::StackName} --resource ECSLaunchConfiguration
+          /opt/aws/bin/cfn-signal -e $? --region ${AWS::Region} --stack ${AWS::StackName} --resource ECSAutoScalingGroup
+
+          # Set Linux traffic control to limit outbound bandwidth usage of Parity
+          tc qdisc add dev eth0 root handle 1:0 htb default 1
+          tc class add dev eth0 parent 1:0 classid 1:10 htb rate ${Bandwidth}kbit ceil {BandwidthCeiling}kbit prio 0
+          tc filter add dev eth0 protocol ip parent 1:0 prio 1 u32 match ip dport 30303 0xffff flowid 1:10
+
+          # Make sure Linux traffic control commands will also be set in case of a reboot
+          echo "tc qdisc add dev eth0 root handle 1:0 htb default 1" >> /etc/rc.local
+          echo "tc class add dev eth0 parent 1:0 classid 1:10 htb rate ${Bandwidth}kbit ceil ${BandwidthCeiling}kbit prio 0" >> /etc/rc.local
+          echo "tc filter add dev eth0 protocol ip parent 1:0 prio 1 u32 match ip dport 30303 0xffff flowid 1:10" >> /etc/rc.local
+
+          # If there was a kernel update applied, reboot
+          if [ `rpm -q kernel|wc -l` -gt 1 ]
+          then
+              reboot
+          fi
+    Metadata:
+      AWS::CloudFormation::Init:
+        config:
+          commands:
+            01_add_instance_to_cluster:
+              command: !Sub echo ECS_CLUSTER=${ECSCluster} >> /etc/ecs/ecs.config
+          files:
+            "/etc/cfn/cfn-hup.conf":
+              mode: 000400
+              owner: root
+              group: root
+              content: !Sub |
+                [main]
+                stack=${AWS::StackId}
+                region=${AWS::Region}
+
+            "/etc/cfn/hooks.d/cfn-auto-reloader.conf":
+              content: !Sub |
+                [cfn-auto-reloader-hook]
+                triggers=post.update
+                path=Resources.ECSLaunchConfiguration.Metadata.AWS::CloudFormation::Init
+                action=/opt/aws/bin/cfn-init -v --region ${AWS::Region} --stack ${AWS::StackName} --resource ECSLaunchConfiguration
+          services:
+            sysvinit:
+              cfn-hup:
+                enabled: true
+                ensureRunning: true
+                files:
+                  - /etc/cfn/cfn-hup.conf
+                  - /etc/cfn/hooks.d/cfn-auto-reloader.conf
+
+  # This IAM Role is attached to all of the ECS hosts. It is based on the default role
+  # published here:
+  # http://docs.aws.amazon.com/AmazonECS/latest/developerguide/instance_IAM_role.html
+  #
+  # You can add other IAM policy statements here to allow access from your ECS hosts
+  # to other AWS services. Please note that this role will be used by ALL containers
+  # running on the ECS host.
+
+  ECSRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      RoleName: !Sub ${EnvironmentName}-ECSRole-${AWS::Region}
+      AssumeRolePolicyDocument: |
+        {
+          "Statement": [{
+            "Action": "sts:AssumeRole",
+            "Effect": "Allow",
+            "Principal": {
+              "Service": [
+                "ec2.amazonaws.com",
+                "ssm.amazonaws.com"
+              ]
+            }
+          }]
+        }
+      Policies:
+        - PolicyName: ecs-service
+          PolicyDocument: |
+            {
+              "Statement": [{
+                "Effect": "Allow",
+                "Action": [
+                  "ecs:CreateCluster",
+                  "ecs:DeregisterContainerInstance",
+                  "ecs:DiscoverPollEndpoint",
+                  "ecs:Poll",
+                  "ecs:RegisterContainerInstance",
+                  "ecs:StartTelemetrySession",
+                  "ecs:Submit*",
+                  "logs:CreateLogStream",
+                  "logs:PutLogEvents",
+                  "ecr:BatchCheckLayerAvailability",
+                  "ecr:BatchGetImage",
+                  "ecr:GetDownloadUrlForLayer",
+                  "ecr:GetAuthorizationToken"
+                ],
+                "Resource": "*"
+              }]
+            }
+        - PolicyName: ssm-agent
+          PolicyDocument: |
+            {
+              "Statement": [{
+                "Effect": "Allow",
+                "Action": [
+                  "ssm:DescribeAssociation",
+                  "ssm:GetDeployablePatchSnapshotForInstance",
+                  "ssm:GetDocument",
+                  "ssm:GetManifest",
+                  "ssm:GetParameters",
+                  "ssm:ListAssociations",
+                  "ssm:ListInstanceAssociations",
+                  "ssm:PutInventory",
+                  "ssm:PutComplianceItems",
+                  "ssm:PutConfigurePackageResult",
+                  "ssm:UpdateAssociationStatus",
+                  "ssm:UpdateInstanceAssociationStatus",
+                  "ssm:UpdateInstanceInformation"
+                ],
+                "Resource": "*"
+              },
+              {
+                "Effect": "Allow",
+                "Action": [
+                  "ec2messages:AcknowledgeMessage",
+                  "ec2messages:DeleteMessage",
+                  "ec2messages:FailMessage",
+                  "ec2messages:GetEndpoint",
+                  "ec2messages:GetMessages",
+                  "ec2messages:SendReply"
+                ],
+                "Resource": "*"
+              },
+              {
+                "Effect": "Allow",
+                "Action": [
+                  "cloudwatch:PutMetricData"
+                ],
+                "Resource": "*"
+              },
+              {
+                "Effect": "Allow",
+                "Action": [
+                  "ec2:DescribeInstanceStatus"
+                ],
+                "Resource": "*"
+              },
+              {
+                "Effect": "Allow",
+                "Action": [
+                  "ds:CreateComputer",
+                  "ds:DescribeDirectories"
+                ],
+                "Resource": "*"
+              },
+              {
+                "Effect": "Allow",
+                "Action": [
+                  "logs:CreateLogGroup",
+                  "logs:CreateLogStream",
+                  "logs:DescribeLogGroups",
+                  "logs:DescribeLogStreams",
+                  "logs:PutLogEvents"
+                ],
+                "Resource": "*"
+              },
+              {
+                "Effect": "Allow",
+                "Action": [
+                  "s3:PutObject",
+                  "s3:GetObject",
+                  "s3:AbortMultipartUpload",
+                  "s3:ListMultipartUploadParts",
+                  "s3:ListBucket",
+                  "s3:ListBucketMultipartUploads"
+                ],
+                "Resource": "*"
+              }]
+            }
+  ECSInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles:
+        - !Ref ECSRole
+  InstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub ${EnvironmentName}-SG
+      GroupDescription: Allow SSH and NLB dynamic ports to EC2 instance
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 32768
+          ToPort: 61000
+          CidrIp: !Ref CIDR
+Outputs:
+  Cluster:
+    Description: A reference to the ECS cluster
+    Value: !Ref ECSCluster
