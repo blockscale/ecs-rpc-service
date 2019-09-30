@@ -182,7 +182,10 @@ end
 
 desc 'Create master CloudFormation stack'
 task create_cfn_stack: :interpolate_params do
-  cmd = 'aws cloudformation create-stack --stack-name ecs-rpc-service ' +
+  params = JSON.parse(File.read('build/params.json'))
+  param = params.find {|param| param['ParameterKey'] == 'EnvironmentName' }
+  stack_name = param['ParameterValue']
+  cmd = "aws cloudformation create-stack --stack-name #{stack_name} " +
         "--template-url https://s3.amazonaws.com/ecs-rpc-service-templates-#{dc.aws_env[:suffix]}/master.yml " +
         '--parameters file://build/params.json ' +
         '--capabilities CAPABILITY_NAMED_IAM'

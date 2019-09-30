@@ -17,11 +17,11 @@
   },
   {
     "ParameterKey": "Bandwidth",
-    "ParameterValue": 2048
+    "ParameterValue": "2048"
   },
   {
     "ParameterKey": "BandwidthCeiling",
-    "ParameterValue": 4096
+    "ParameterValue": "4096"
   },
   {
     "ParameterKey": "EnvironmentName",
@@ -29,11 +29,11 @@
   },
   {
     "ParameterKey": "SpotPrice",
-    "ParameterValue": 0.156
+    "ParameterValue": "0.156"
   },
   {
     "ParameterKey": "ClusterSize",
-    "ParameterValue": 3
+    "ParameterValue": "3"
   },
   {
     "ParameterKey": "BucketName",

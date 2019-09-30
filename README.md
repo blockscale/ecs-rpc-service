@@ -31,12 +31,16 @@ contents of the parity .local directory to an S3 bucket in the same region.
 ## Using the service    
     
 Once the cluster nodes are healthy, it should be possible to send transactions to the RPC service. The RPC URI can be
-found in **CloudFormation** under the main stack's outputs. Here is a test transaction that can be sent from the
-command line. If the service is working, you should get a response like the one below.
+found in **CloudFormation** under the main stack's outputs. Here are some test transactions that can be sent from the
+command line. If the service is working, you should get responses like the ones below.
 
 ```
 ∴ curl <URI> -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","method":"web3_clientVersion","params":[],"id":67}'
 {"jsonrpc":"2.0","result":"Parity-Ethereum//v2.5.8-stable-c52a6c8-20190916/x86_64-linux-gnu/rustc1.36.0","id":67}
+∴ curl <URI> -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","method":"eth_gasPrice","params":[],"id":73}'
+{"jsonrpc":"2.0","result":"0x77359400","id":73}
+∴ curl <URI> -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","method":"net_version","params":[],"id":67}'
+{"jsonrpc":"2.0","result":"1","id":67}
 ```
 
 ## Future improvements
