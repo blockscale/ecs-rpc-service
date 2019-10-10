@@ -13,8 +13,13 @@ def random_text(number)
   Array.new(number) { charset.sample }.join
 end
 
-def my_exec(cmd, halt_on_error: true, hide_output: false)
-  puts "Executing: #{cmd}".white.bold
+def my_exec(cmd, halt_on_error: true, hide_output: false, hide_command: false)
+  print "Executing: "
+  if hide_command
+    puts "<redacted>".white.bold
+  else
+    puts "#{cmd}".white.bold
+  end
   stdout, stderr, status = Open3.capture3(cmd)
   print stdout unless hide_output
   if status.exitstatus != 0
@@ -102,7 +107,7 @@ class DockerBuilder
     Dir.chdir(dockerdir)
     my_exec("aws ecr create-repository --repository-name #{@name}", halt_on_error: false, hide_output: true)
     result = my_exec('aws ecr get-login --no-include-email', hide_output: true)
-    my_exec result[:stdout]
+    my_exec(result[:stdout], hide_command: true)
     my_exec "docker build -t #{@name} ."
     my_exec "docker tag #{@name}:latest #{@image_name}"
     my_exec "docker push #{@image_name}"
