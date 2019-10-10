@@ -37,7 +37,7 @@
   },
   {
     "ParameterKey": "BucketName",
-    "ParameterValue": "ecs-rpcs-service-blockchain-state"
+    "ParameterValue": "ecs-rpc-service-blockchain-state"
   },
   {
     "ParameterKey": "BucketKey",
