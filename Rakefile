@@ -25,6 +25,7 @@ def my_exec(cmd, halt_on_error: true, hide_output: false)
   {stdout: stdout, stderr: stderr, status: status}
 end
 
+
 class DependencyChecker
   attr_accessor :aws_env
 
@@ -83,52 +84,51 @@ task :confirm_can_build do
 end
 
 class DockerBuilder
-  def initialize(dependency_checker, name)
+  def initialize(dependency_checker, evm: 'geth', role:)
     @dependency_checker = dependency_checker
-    @name = name
+    @role = role
+    @evm = evm
   end
 
   def set_docker_parameters
     region = @dependency_checker.aws_env[:region]
     acct = @dependency_checker.aws_env[:account]
-    @image_name = "#{acct}.dkr.ecr.#{region}.amazonaws.com/#{@name}:latest"
-    @dependency_checker.aws_env["#{@name}_image_name".to_sym] = @image_name
+    @image_name = "#{acct}.dkr.ecr.#{region}.amazonaws.com/#{@evm}-#{@role}:latest"
+    @dependency_checker.aws_env["#{@evm}_#{@role}_image_name".to_sym] = @image_name
   end
 
   def build
     set_docker_parameters
-    dockerdir = Pathname.new(__dir__).join("docker/parity/#{@name}")
+    dockerdir = Pathname.new(__dir__).join("docker/#{@evm}/#{@role}")
     startingdir = Dir.pwd
     Dir.chdir(dockerdir)
-    my_exec("aws ecr create-repository --repository-name #{@name}", halt_on_error: false, hide_output: true)
+    my_exec("aws ecr create-repository --repository-name #{@role}", halt_on_error: false, hide_output: true)
     result = my_exec('aws ecr get-login --no-include-email', hide_output: true)
     my_exec result[:stdout]
-    my_exec "docker build -t #{@name} ."
-    my_exec "docker tag #{@name}:latest #{@image_name}"
+    my_exec "docker build -t #{@evm}-#{@role} ."
+    my_exec "docker tag #{@evm}-#{@role}:latest #{@image_name}"
     my_exec "docker push #{@image_name}"
     Dir.chdir(startingdir)
   end
 end
 
-task :build_rpc_docker do
-  builder = DockerBuilder.new(dc, 'rpc')
-  builder.build
-end
-
-task :build_updater_docker do
-  builder = DockerBuilder.new(dc, 'updater')
-  builder.build
-end
-
-task :set_docker_parameters => :confirm_can_build do
-  builder = DockerBuilder.new(dc, 'rpc')
-  builder.set_docker_parameters
-  builder = DockerBuilder.new(dc, 'updater')
-  builder.set_docker_parameters
+task set_docker_parameters: :confirm_can_build do
+  %w[geth parity].each do |e|
+    %w[rpc updater].each do |r|
+      builder = DockerBuilder.new(dc, role: r, evm: e)
+      builder.set_docker_parameters
+    end
+  end
 end
 
 desc 'Build docker images'
-task docker: %i[confirm_can_build build_rpc_docker build_updater_docker] do
+task docker: %i[confirm_can_build] do
+  %w[geth parity].each do |e|
+    %w[rpc updater].each do |r|
+      builder = DockerBuilder.new(dc, role: r, evm: e)
+      builder.build
+    end
+  end
 end
 
 desc 'Generate unique bucket prefix'
@@ -167,13 +167,15 @@ end
 desc 'Interpolate parameters from previous tasks'
 task interpolate_params: :push_cfn_templates do
   params = JSON.parse(File.read('config/params.json'))
+  param = params.find {|p| p['ParameterKey'] == 'RpcClient' }
+  evm = param['ParameterValue']
   params.push(
     'ParameterKey' => 'RpcDockerImage',
-    'ParameterValue' => dc.aws_env[:rpc_image_name]
+    'ParameterValue' => dc.aws_env["#{evm}_rpc_image_name".to_sym]
   )
   params.push(
     'ParameterKey' => 'UpdaterDockerImage',
-    'ParameterValue' => dc.aws_env[:updater_image_name]
+    'ParameterValue' => dc.aws_env["#{evm}_updater_image_name".to_sym]
   )
   File.open('build/params.json', 'w') do |file|
     file << params.to_json
@@ -183,7 +185,7 @@ end
 desc 'Create master CloudFormation stack'
 task create_cfn_stack: :interpolate_params do
   params = JSON.parse(File.read('build/params.json'))
-  param = params.find {|param| param['ParameterKey'] == 'EnvironmentName' }
+  param = params.find {|p| p['ParameterKey'] == 'EnvironmentName' }
   stack_name = param['ParameterValue']
   cmd = "aws cloudformation create-stack --stack-name #{stack_name} " +
         "--template-url https://s3.amazonaws.com/ecs-rpc-service-templates-#{dc.aws_env[:suffix]}/master.yml " +
@@ -192,4 +194,4 @@ task create_cfn_stack: :interpolate_params do
   my_exec(cmd)
 end
 
-task default: [:docker, :create_cfn_stack]
+task default: %i[docker create_cfn_stack]

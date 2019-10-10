@@ -51,8 +51,6 @@ Resources:
         - Name: updater
           Essential: true
           Image: !Ref DockerImage
-          Command:
-            - "--cache-size 2048 --tx-queue-mem-limit 0 --tx-queue-size 40000 --jsonrpc-interface all --jsonrpc-hosts all --no-download --auto-update none --pruning fast --db-compaction ssd --max-peers 10 --min-peers 10"
           Environment:
             - Name: "region"
               Value: !Ref AWS::Region
