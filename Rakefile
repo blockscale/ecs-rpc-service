@@ -24,8 +24,8 @@ def my_exec(cmd, halt_on_error: true, hide_output: false, hide_command: false)
   print stdout unless hide_output
   if status.exitstatus != 0
     print stderr unless hide_output
-    exit(status.exitstatus) if halt_on_error
     puts "Previous command reported error code #{status}" unless hide_output
+    exit(status.exitstatus) if halt_on_error
   end
   {stdout: stdout, stderr: stderr, status: status}
 end
