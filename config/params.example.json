@@ -37,11 +37,7 @@
   },
   {
     "ParameterKey": "BucketName",
-    "ParameterValue": "ecs-rpcs-service-blockchain-state"
-  },
-  {
-    "ParameterKey": "BucketKey",
-    "ParameterValue": "parity"
+    "ParameterValue": "ecs-rpc-service-blockchain-state"
   },
   {
     "ParameterKey": "DesiredTaskCount",

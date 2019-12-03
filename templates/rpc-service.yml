@@ -60,6 +60,11 @@ Resources:
         - Name: rpc-service
           Essential: true
           Image: !Ref DockerImage
+<<<<<<< HEAD
+=======
+          Command:
+            - "-d /root/.local --jsonrpc-cors '*' --jsonrpc-interface all --jsonrpc-hosts all"
+>>>>>>> master
           Environment:
             - Name: "region"
               Value: !Ref AWS::Region

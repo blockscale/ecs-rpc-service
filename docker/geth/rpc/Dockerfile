@@ -1,6 +1,6 @@
-FROM ethereum/client-go:v1.9.6
+FROM ethereum/client-go:v1.9.8
 
-ENV AWSCLI_VERSION "1.16.256"
+ENV AWSCLI_VERSION "1.16.290"
 
 USER root
 RUN apk add --update \

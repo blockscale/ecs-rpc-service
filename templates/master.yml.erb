@@ -25,7 +25,7 @@ Metadata:
           default: RPC service options
         Parameters:
           - BucketName
-          - BucketKey
+          - RpcClient
           - RpcDockerImage
           - DesiredTaskCount
     ParameterLabels:
@@ -39,7 +39,7 @@ Metadata:
         default: Key pair
       BucketName:
         default: Bucket name
-      BucketKey:
+      RpcClient:
         default: Bucket key
       RpcDockerImage:
         default: Docker image name for RPC container
@@ -93,7 +93,7 @@ Parameters:
     Description: The S3 bucket that contains the blockchain data files
     Type: String
     Default: ecs-rpc-service-blockchain-state
-  BucketKey:
+  RpcClient:
     Description: The subfolder/key within the bucket that contains the blockchain data files
     Type: String
     Default: parity
@@ -144,7 +144,7 @@ Resources:
       Parameters:
         EnvironmentName: !Ref EnvironmentName
         Bucket: !Ref BucketName
-        s3key: !Ref BucketKey
+        s3key: !Ref RpcClient
         DockerImage: !Ref RpcDockerImage
         VPC: !Ref VPC
         Subnets: !Ref Subnets
@@ -160,7 +160,7 @@ Resources:
       Parameters:
         EnvironmentName: !Ref EnvironmentName
         Bucket: !Ref BucketName
-        s3key: !Ref BucketKey
+        s3key: !Ref RpcClient
         DockerImage: !Ref UpdaterDockerImage
         Cluster: !GetAtt
           - EcsCluster

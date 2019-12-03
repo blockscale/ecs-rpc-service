@@ -4,9 +4,8 @@
 
 ## Pre-installation
 
-This solution requires bootstrapping with an existing copy of a full parity node's blockchain state. To do this, we
-recommend installing parity on an EC2 i3.large instance, waiting several days for it to sync, and then copying the
-contents of the parity .local directory to an S3 bucket in the same region. 
+This solution requires bootstrapping with an existing copy of a full node's blockchain state. To do this, we
+recommend installing parity/geth on an EC2 i3.large instance, waiting several hours for it to sync, and then copying the contents of the data store to an S3 bucket in the same region.
 
 ## Installation instructions
 
@@ -16,7 +15,8 @@ contents of the parity .local directory to an S3 bucket in the same region.
 4.  Create a key pair under **EC2 > Key pairs** in your preferred region in the AWS Management Console and save the
     private key (PEM file) to your workstation so you can ssh to the instances in your ECS cluster.
 5.  `cp config/params.example.json config/params.json`
-6.  Edit `config/params.json` for your own VPC, subnets, etc.
+6.  Edit `config/params.json` for your own VPC, subnets, etc. The deployment expects to find the blockchain
+    state backup in s3://{BucketName}/{RpcClient}
 7.  Install ruby on your OS if it's not there already. You may wish to use an environment manager such as
     [RVM](https://rvm.io/) or [rbenv](https://github.com/rbenv/rbenv) to avoid polluting your global ruby environment.
 8.  Once in your ruby environment:
@@ -27,9 +27,9 @@ contents of the parity .local directory to an S3 bucket in the same region.
     to come fully online.
 10. After creating the stack, the progress of the nodes downloading the blockchain can be tracked in **CloudWatch Logs**.
     The health of the cluster can be checked by going to **EC2 > Load Balancers > Target Groups**.
-    
+
 ## Using the service    
-    
+
 Once the cluster nodes are healthy, it should be possible to send transactions to the RPC service. The RPC URI can be
 found in **CloudFormation** under the main stack's outputs. Here are some test transactions that can be sent from the
 command line. If the service is working, you should get responses like the ones below.
