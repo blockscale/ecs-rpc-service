@@ -15,7 +15,7 @@ GEM
     minitest (5.14.1)
     rake (13.0.0)
     thread_safe (0.3.6)
-    tzinfo (1.2.7)
+    tzinfo (1.2.10)
       thread_safe (~> 0.1)
     zeitwerk (2.3.0)
 
